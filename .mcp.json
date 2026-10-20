@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "dograh": {
+      "type": "http",
+      "url": "https://app.dograh.com/api/v1/mcp/",
+      "headers": {
+        "X-API-Key": "${DOGRAH_API_KEY}"
+      }
+    }
+  }
+}

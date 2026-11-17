@@ -1,5 +1,6 @@
 import { requireOrg } from "@/lib/auth";
 import { format } from "date-fns";
+import { pricePerMin, startOfMonthIst, totalBillableMinutes } from "@/lib/billing";
 
 export default async function DashboardPage() {
   const { supabase } = await requireOrg();
@@ -43,7 +44,15 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false })
     .limit(8);
 
-  const totalContacted = (interestedLeads || 0) + (lostLeads || 0) + (followupLeads || 0);
+  const { data: monthCalls } = await supabase
+    .from("calls")
+    .select("duration")
+    .gte("created_at", startOfMonthIst());
+  const usedMinutes = totalBillableMinutes((monthCalls ?? []).map((c) => c.duration));
+  const avgSeconds =
+    (monthCalls ?? []).reduce((s, c) => s + (Number(c.duration) || 0), 0) / Math.max(monthCalls?.length ?? 0, 1);
+
+  const totalContacted =(interestedLeads || 0) + (lostLeads || 0) + (followupLeads || 0);
   const conversionRate = totalContacted > 0 ? Math.round(((interestedLeads || 0) / totalContacted) * 100) : 0;
 
   return (
@@ -64,6 +73,18 @@ export default async function DashboardPage() {
         <StatCard title="Interested Leads" value={interestedLeads || 0} />
         <StatCard title="Follow-up Required" value={followupLeads || 0} />
       </div>
+
+      {/* Usage and cost, billed per 30 s pulse */}
+      <section className="bg-surface border border-border/50 rounded-2xl p-8 shadow-sm">
+        <h2 className="text-2xl font-serif text-on-surface tracking-tight">This month&apos;s usage</h2>
+        <p className="text-on-surface-muted text-sm mt-1 mb-6">Billed per 30-second pulse, calendar month (IST).</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <StatCard title="Billable minutes" value={usedMinutes.toFixed(1)} />
+          <StatCard title="Billed (₹)" value={Math.round(usedMinutes * pricePerMin())} />
+          <StatCard title="Avg call (s)" value={monthCalls?.length ? Math.round(avgSeconds) : 0} />
+          <StatCard title="Calls" value={monthCalls?.length ?? 0} />
+        </div>
+      </section>
 
       {/* Conversion Bar */}
       <section className="bg-surface border border-border/50 rounded-2xl p-8 shadow-sm">

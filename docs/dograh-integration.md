@@ -87,3 +87,7 @@ For each customer:
 - **CSV import:** Leads page, Import CSV. Requires a consent confirmation and a source
   label, stored in `leads.consent_source`. Dedupes by phone, max 1000 rows.
 - **Status matching** now uses whole words, so "casino" no longer reads as "no".
+- **Cost controls:** max 3 calls per lead (`MAX_ATTEMPTS_PER_LEAD`) and an optional
+  monthly billable-minute cap per customer (`organizations.monthly_minutes_limit`,
+  run `apps/web/supabase/002_usage_limits.sql`; env default `MONTHLY_MINUTES_LIMIT`).
+  The dashboard shows this month's billable minutes (30 s pulse) and billed amount.

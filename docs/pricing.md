@@ -8,7 +8,7 @@ must be confirmed before quoting a customer.
 | Item | Rate | Source |
 |---|---|---|
 | Dograh Cloud platform fee | 1¢/min (~₹0.92), $5 min top-up, 10 concurrent calls | dograh.com/pricing |
-| Dograh self-hosted | Free (BSD-2, confirm license file in repo) | dograh.com/pricing |
+| Dograh self-hosted | Free (BSD-2 confirmed in github.com/dograh-hq/dograh LICENSE, 2026-11-03) | dograh.com/pricing |
 | Sarvam STT | ₹30/hour (₹0.50/min) | docs.sarvam.ai/api/pricing |
 | Sarvam TTS Bulbul v3 | ₹30 per 10K characters | docs.sarvam.ai/api/pricing |
 | Sarvam LLM `sarvam-105b` | ₹15 input / ₹5 cached / ₹60 output per 1M tokens | docs.sarvam.ai/api/pricing |
@@ -31,6 +31,11 @@ TTS is the biggest line. Ways to cut it:
 - pre-recorded audio for fixed lines (greeting, standard questions, closing)
 - agent replies under 2 sentences
 - end "not interested" calls at once
+
+Observed 2026-10-20: user saw about ₹6/min on a web call using Dograh's own models
+(*unverified*, breakdown not yet read). This is well above the ₹2.8–4.0 estimate, so
+Dograh Models are likely billed on top of the 1¢ platform fee at a higher rate than
+BYOK. Switching to BYOK (Sarvam) is the first fix to test.
 
 Replace these estimates with real numbers from the Dograh runs API once test calls run.
 

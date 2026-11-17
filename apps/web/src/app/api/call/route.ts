@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { DOGRAH_API_URL } from "@/lib/dograh";
 import { normalizeIndianPhone } from "@/lib/phone";
+import {
+  defaultMonthlyMinutesLimit,
+  maxAttemptsPerLead,
+  startOfMonthIst,
+  totalBillableMinutes,
+} from "@/lib/billing";
 import { callingHoursMessage, isWithinCallingHours } from "@/lib/calling-hours";
 
 // A call stuck in "Calling..." longer than this is treated as lost and may be retried.
@@ -73,6 +79,45 @@ export async function POST(req: Request) {
     .limit(1);
   if (inFlight && inFlight.length > 0) {
     return NextResponse.json({ error: "A call to this lead is already in progress." }, { status: 409 });
+  }
+
+  // Cost controls: stop re-calling the same lead forever, and cap monthly minutes.
+  const maxAttempts = maxAttemptsPerLead();
+  if (maxAttempts > 0) {
+    const { count: attempts } = await supabase
+      .from("calls")
+      .select("id", { count: "exact", head: true })
+      .eq("lead_id", lead.id);
+    if ((attempts ?? 0) >= maxAttempts) {
+      return NextResponse.json(
+        { error: `This lead has already been called ${maxAttempts} times.` },
+        { status: 409 }
+      );
+    }
+  }
+
+  // monthly_minutes_limit only exists after supabase/002_usage_limits.sql; tolerate its absence.
+  const { data: limitRow } = await supabase
+    .from("organizations")
+    .select("monthly_minutes_limit")
+    .eq("id", org.id)
+    .maybeSingle();
+  const monthlyLimit =
+    (limitRow as { monthly_minutes_limit: number | null } | null)?.monthly_minutes_limit ??
+    defaultMonthlyMinutesLimit();
+  if (monthlyLimit > 0) {
+    const { data: monthCalls } = await supabase
+      .from("calls")
+      .select("duration")
+      .eq("org_id", org.id)
+      .gte("created_at", startOfMonthIst());
+    const used = totalBillableMinutes((monthCalls ?? []).map((c) => c.duration));
+    if (used >= monthlyLimit) {
+      return NextResponse.json(
+        { error: "Monthly calling limit reached. Contact support to raise it." },
+        { status: 402 }
+      );
+    }
   }
 
   let dograhRes: Response;

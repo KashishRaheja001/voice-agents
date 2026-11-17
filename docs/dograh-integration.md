@@ -91,3 +91,9 @@ For each customer:
   monthly billable-minute cap per customer (`organizations.monthly_minutes_limit`,
   run `apps/web/supabase/002_usage_limits.sql`; env default `MONTHLY_MINUTES_LIMIT`).
   The dashboard shows this month's billable minutes (30 s pulse) and billed amount.
+- **Retry suggestions:** after "No Answer" (+3 h) or "Follow Up" (next day 10:00 IST) the
+  webhook stores `leads.next_call_at`, clamped to 9am to 9pm IST. The dashboard lists
+  leads whose time has passed; a person still clicks Call. Optional: run
+  `apps/web/supabase/003_retry_scheduling.sql`. Without it the webhook still works.
+- **Calls CSV:** `/api/export/calls` (link on the dashboard) gives date, lead, status,
+  billable seconds and amount, for invoicing. Cells starting with = + - @ are escaped.

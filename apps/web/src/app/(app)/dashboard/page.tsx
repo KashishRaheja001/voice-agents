@@ -1,4 +1,5 @@
 import { requireOrg } from "@/lib/auth";
+import Link from "next/link";
 import { format } from "date-fns";
 import { pricePerMin, startOfMonthIst, totalBillableMinutes } from "@/lib/billing";
 
@@ -52,7 +53,18 @@ export default async function DashboardPage() {
   const avgSeconds =
     (monthCalls ?? []).reduce((s, c) => s + (Number(c.duration) || 0), 0) / Math.max(monthCalls?.length ?? 0, 1);
 
-  const totalContacted =(interestedLeads || 0) + (lostLeads || 0) + (followupLeads || 0);
+  // Leads whose suggested retry time has passed. Needs supabase/003_retry_scheduling.sql;
+  // if the column is missing the query errors and the card simply stays hidden.
+  const { data: dueLeads } = await supabase
+    .from("leads")
+    .select("id, name, phone, status, next_call_at")
+    .lte("next_call_at", new Date().toISOString())
+    .eq("do_not_call", false)
+    .in("status", ["No Answer", "Follow Up"])
+    .order("next_call_at", { ascending: true })
+    .limit(6);
+
+  const totalContacted = (interestedLeads || 0) + (lostLeads || 0) + (followupLeads || 0);
   const conversionRate = totalContacted > 0 ? Math.round(((interestedLeads || 0) / totalContacted) * 100) : 0;
 
   return (
@@ -78,6 +90,11 @@ export default async function DashboardPage() {
       <section className="bg-surface border border-border/50 rounded-2xl p-8 shadow-sm">
         <h2 className="text-2xl font-serif text-on-surface tracking-tight">This month&apos;s usage</h2>
         <p className="text-on-surface-muted text-sm mt-1 mb-6">Billed per 30-second pulse, calendar month (IST).</p>
+        <div className="mb-4">
+          <a href="/api/export/calls" className="text-sm font-semibold text-primary hover:underline">
+            Download calls as CSV
+          </a>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <StatCard title="Billable minutes" value={usedMinutes.toFixed(1)} />
           <StatCard title="Billed (₹)" value={Math.round(usedMinutes * pricePerMin())} />
@@ -85,6 +102,27 @@ export default async function DashboardPage() {
           <StatCard title="Calls" value={monthCalls?.length ?? 0} />
         </div>
       </section>
+
+      {dueLeads && dueLeads.length > 0 && (
+        <section className="bg-surface border border-border/50 rounded-2xl p-8 shadow-sm">
+          <h2 className="text-2xl font-serif text-on-surface tracking-tight">Due for a retry</h2>
+          <p className="text-on-surface-muted text-sm mt-1 mb-4">
+            No answer or asked for a follow-up. Open the lead to call again (within 9am to 9pm IST).
+          </p>
+          <ul className="divide-y divide-border/30">
+            {dueLeads.map((l) => (
+              <li key={l.id} className="py-3 flex justify-between items-center text-sm">
+                <Link href={`/leads/${l.id}`} className="font-semibold text-on-surface hover:text-primary">
+                  {l.name}
+                </Link>
+                <span className="text-on-surface-muted">
+                  {l.status} · {l.phone}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Conversion Bar */}
       <section className="bg-surface border border-border/50 rounded-2xl p-8 shadow-sm">

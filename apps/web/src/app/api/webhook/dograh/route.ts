@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanValue, hasValidWebhookSecret } from "@/lib/dograh";
 import { classify } from "@/lib/classify";
+import { nextCallAt } from "@/lib/retry";
 
 // Receives the Dograh webhook node POST after each call. The payload template to
 // configure in Dograh is documented in docs/dograh-integration.md.
@@ -92,7 +93,17 @@ export async function POST(req: Request) {
   if (extracted.timeline) leadUpdate.timeline = extracted.timeline;
   if (extracted.purpose) leadUpdate.purpose = extracted.purpose;
 
-  const { error: leadError } = await admin.from("leads").update(leadUpdate).eq("id", lead.id).eq("org_id", lead.org_id);
+  // Suggest when to retry. next_call_at exists only after supabase/003_retry_scheduling.sql,
+  // so fall back to a plain update if the column is missing (Postgres error 42703).
+  const retryAt = nextCallAt(classification.status);
+  let { error: leadError } = await admin
+    .from("leads")
+    .update({ ...leadUpdate, next_call_at: retryAt ? retryAt.toISOString() : null })
+    .eq("id", lead.id)
+    .eq("org_id", lead.org_id);
+  if (leadError?.code === "42703") {
+    ({ error: leadError } = await admin.from("leads").update(leadUpdate).eq("id", lead.id).eq("org_id", lead.org_id));
+  }
   if (leadError) {
     console.error("webhook: lead update failed", leadError);
     return NextResponse.json({ error: "Could not update lead" }, { status: 500 });

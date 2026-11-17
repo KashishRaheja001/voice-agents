@@ -7,6 +7,7 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", className: "text-on-surface" },
   { href: "/leads", label: "Leads", className: "text-on-surface" },
   { href: "/leads/interested", label: "Hot Leads", className: "text-red-700 font-bold" },
+  { href: "/visits", label: "Site Visits", className: "text-on-surface" },
   { href: "/properties", label: "Properties", className: "text-on-surface" },
   { href: "/settings", label: "Settings", className: "text-on-surface" },
 ];

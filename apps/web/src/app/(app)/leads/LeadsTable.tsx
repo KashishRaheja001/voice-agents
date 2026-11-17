@@ -4,6 +4,11 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { addLead, deleteLead } from "@/app/actions/leadActions";
 
+const CALLABLE = ["New", "No Answer", "Follow Up"];
+const STATUSES = ["New", "Calling...", "Contacted", "Interested", "Site Visit", "Follow Up", "No Answer", "Not Interested"];
+// Most calls one bulk run may start. Keeps a mis-click from burning a day's budget.
+const MAX_BULK = 25;
+
 export type LeadRow = {
   id: string;
   name: string;
@@ -12,6 +17,7 @@ export type LeadRow = {
   status: string;
   interest_level: string;
   created_at: string;
+  do_not_call?: boolean;
   calls?: { id: string; summary: string | null; transcript: string | null; duration: number | null; call_status: string }[];
 };
 
@@ -20,28 +26,67 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
   const [callingId, setCallingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "contacted">(hideTabs ? "contacted" : "new");
+  const [search, setSearch] = useState("");
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulk, setBulk] = useState<{ running: boolean; done: number; total: number; skipped: number; note: string } | null>(null);
 
-  const handleCall = async (leadId: string) => {
-    setCallingId(leadId);
+  const isCallable = (l: LeadRow) => !l.do_not_call && CALLABLE.includes(l.status);
+
+  // Places one call. Returns the HTTP status so bulk runs can decide whether to go on.
+  async function placeCall(leadId: string): Promise<{ ok: boolean; status: number; error?: string }> {
     try {
-      const response = await fetch("/api/call", {
+      const res = await fetch("/api/call", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadId }),
       });
-      const data = await response.json();
-      if (data.success) {
-        setLeads(leads.map(l => l.id === leadId ? { ...l, status: "Calling..." } : l));
-        alert("Call initiated successfully. Results appear here when the call ends.");
-      } else {
-        alert("Failed to initiate call: " + data.error);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, status: "Calling..." } : l)));
+        return { ok: true, status: res.status };
       }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred while initiating the call.");
-    } finally {
-      setCallingId(null);
+      return { ok: false, status: res.status, error: data.error ?? "Could not start the call." };
+    } catch {
+      return { ok: false, status: 0, error: "Network error." };
     }
+  }
+
+  async function callSelected() {
+    const ids = [...selected].slice(0, MAX_BULK);
+    if (ids.length === 0) return;
+    if (!confirm(`Call ${ids.length} lead${ids.length > 1 ? "s" : ""} now? Each call is billed per 30 s.`)) return;
+    setBulk({ running: true, done: 0, total: ids.length, skipped: 0, note: "" });
+    let done = 0;
+    let skipped = 0;
+    let note = "";
+    for (const id of ids) {
+      const r = await placeCall(id);
+      if (r.ok) done++;
+      else if (r.status === 409) skipped++; // already called, do-not-call, or in progress
+      else {
+        // Calling hours, usage limit, missing setup, network: stop the whole run.
+        note = r.error ?? "Stopped.";
+        break;
+      }
+      setBulk({ running: true, done, total: ids.length, skipped, note });
+      await new Promise((res) => setTimeout(res, 1500));
+    }
+    setBulk({ running: false, done, total: ids.length, skipped, note });
+    setSelected(new Set());
+  }
+
+  const handleCall = async (leadId: string) => {
+    setCallingId(leadId);
+    setNotice(null);
+    const r = await placeCall(leadId);
+    setCallingId(null);
+    setNotice(
+      r.ok
+        ? { ok: true, text: "Call started. Results appear here when the call ends." }
+        : { ok: false, text: r.error ?? "Could not start the call." }
+    );
   };
 
   const handleDelete = async (id: string) => {
@@ -52,10 +97,27 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
     }
   };
 
+  const needle = search.trim().toLowerCase();
+  const needleDigits = needle.replace(/\D/g, "");
   const filteredLeads = leads.filter(lead => {
-    if (activeTab === "new") return lead.status === "New";
-    return lead.status !== "New"; // Everything else goes to Contacted
+    if (activeTab === "new" ? lead.status !== "New" : lead.status === "New") return false;
+    if (statusFilter !== "all" && lead.status !== statusFilter) return false;
+    if (!needle) return true;
+    return (
+      lead.name.toLowerCase().includes(needle) ||
+      (needleDigits.length >= 3 && lead.phone.replace(/\D/g, "").includes(needleDigits))
+    );
   });
+  const visibleCallable = filteredLeads.filter(isCallable);
+  const allVisibleSelected = visibleCallable.length > 0 && visibleCallable.every((l) => selected.has(l.id));
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAll = () => setSelected(allVisibleSelected ? new Set() : new Set(visibleCallable.map((l) => l.id)));
 
   return (
     <div className="bg-surface border border-border/50 rounded-2xl p-8 shadow-sm relative">
@@ -123,12 +185,63 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
         </div>
       )}
 
-      
+      <div className="flex flex-col md:flex-row gap-3 mb-4">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or phone"
+          className="flex-1 bg-neutral border border-border/50 rounded-lg px-4 py-2 text-sm text-on-surface"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="bg-neutral border border-border/50 rounded-lg px-4 py-2 text-sm text-on-surface"
+          aria-label="Filter by status"
+        >
+          <option value="all">All statuses</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+
+      {notice && (
+        <p className={`mb-4 text-sm ${notice.ok ? "text-green-700" : "text-red-700"}`}>{notice.text}</p>
+      )}
+
+      {(selected.size > 0 || bulk) && (
+        <div className="flex flex-wrap items-center gap-4 mb-4 bg-tertiary/40 border border-border/50 rounded-xl px-4 py-3 text-sm">
+          {selected.size > 0 && !bulk?.running && (
+            <>
+              <span className="font-semibold text-on-surface">{selected.size} selected</span>
+              <button onClick={callSelected} className="bg-primary text-white px-4 py-1.5 rounded-full font-bold">
+                Call selected{selected.size > MAX_BULK ? ` (first ${MAX_BULK})` : ""}
+              </button>
+              <button onClick={() => setSelected(new Set())} className="underline underline-offset-2 text-on-surface-muted">
+                Clear
+              </button>
+            </>
+          )}
+          {bulk && (
+            <span className={bulk.note ? "text-red-700" : "text-on-surface"}>
+              {bulk.running ? "Calling... " : "Finished. "}
+              {bulk.done} of {bulk.total} started
+              {bulk.skipped > 0 ? `, ${bulk.skipped} skipped` : ""}
+              {bulk.note ? `. Stopped: ${bulk.note}` : ""}
+            </span>
+          )}
+        </div>
+      )}
+
       {filteredLeads.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border/50 text-sm font-semibold text-on-surface-muted uppercase tracking-wider">
+                <th className="pb-4 w-8">
+                  <input type="checkbox" aria-label="Select all callable leads" checked={allVisibleSelected} onChange={toggleAll} disabled={visibleCallable.length === 0 || bulk?.running} />
+                </th>
                 <th className="pb-4 font-sans font-bold">Contact Info</th>
                 <th className="pb-4 font-sans font-bold">Status</th>
                 <th className="pb-4 font-sans font-bold">Interest</th>
@@ -139,6 +252,11 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
             <tbody className="text-sm">
               {filteredLeads.map((lead) => (
                 <tr key={lead.id} className="border-b border-border/20 last:border-0 hover:bg-tertiary/50 transition-colors">
+                  <td className="py-5">
+                    {isCallable(lead) && (
+                      <input type="checkbox" aria-label={`Select ${lead.name}`} checked={selected.has(lead.id)} onChange={() => toggleOne(lead.id)} disabled={bulk?.running} />
+                    )}
+                  </td>
                   <td className="py-5">
                     <div className="font-semibold text-on-surface text-base">{lead.name}</div>
                     <div className="text-on-surface-muted text-sm mt-1">{lead.phone}</div>
@@ -154,6 +272,7 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
                     }`}>
                       {lead.status}
                     </span>
+                    {lead.do_not_call && <span className="ml-2 text-xs font-semibold text-red-700">Do Not Call</span>}
                   </td>
                   <td className="py-5">
                     <span className="text-on-surface-muted font-medium">
@@ -164,7 +283,7 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
                     {format(new Date(lead.created_at), "MMM d, yyyy")}
                   </td>
                   <td className="py-5 text-right space-x-3 whitespace-nowrap">
-                    {lead.status === "New" || lead.status === "Calling..." ? (
+                    {isCallable(lead) || lead.status === "Calling..." ? (
                       <button 
                         onClick={() => handleCall(lead.id)}
                         disabled={callingId === lead.id || lead.status === "Calling..."}
@@ -178,7 +297,7 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
                             </svg>
                             Calling...
                           </span>
-                        ) : "Call AI"}
+                        ) : lead.status === "New" ? "Call AI" : "Call again"}
                       </button>
                     ) : (
                       <a href={`/leads/${lead.id}`} className="inline-block bg-primary text-white px-5 py-2 rounded-full text-sm font-bold tracking-wide shadow-sm hover:opacity-90 transition-opacity">

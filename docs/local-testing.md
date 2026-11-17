@@ -1,7 +1,7 @@
 # Local end-to-end testing
 
 Runs the real app against a local Supabase (Docker) and a mock Dograh. It never touches
-real Supabase, real Dograh, or any phone number. Last run 2026-11-17: 17 of 17 passed,
+real Supabase, real Dograh, or any phone number. Last run 2026-11-18: 18 of 18 passed,
 plus the calling-hours check, plus a manual browser pass (signup, settings, CSV import,
 Call AI, Do Not Call, retry).
 
@@ -49,7 +49,7 @@ the dev server with `CALLING_HOURS_START=5 CALLING_HOURS_END=5` and run the scri
 
 ## What it covers
 
-Call payload and trigger ID, double-call and attempt-cap guards, do-not-call, webhook
+Call payload and trigger ID, Site Visits page, double-call and attempt-cap guards, do-not-call, webhook
 secret and validation, idempotency, Site Visit / Follow Up / No Answer / opt-out
 classification, retry times, monthly minute limit, CSV export (rounding and formula
 escaping), page rendering, CSV import semantics, and tenant isolation (RLS).

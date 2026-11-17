@@ -97,3 +97,9 @@ For each customer:
   `apps/web/supabase/003_retry_scheduling.sql`. Without it the webhook still works.
 - **Calls CSV:** `/api/export/calls` (link on the dashboard) gives date, lead, status,
   billable seconds and amount, for invoicing. Cells starting with = + - @ are escaped.
+- **Leads table:** search by name or phone, status filter, and "Call again" for No Answer
+  and Follow Up leads. Select several callable leads and "Call selected" starts them one
+  by one (1.5 s apart, max 25 per run). A run stops on calling hours, usage limit or a
+  setup error; leads already called, in progress or do-not-call are skipped.
+- **Site Visits page:** every lead the agent booked, with the slot, budget, area and a
+  tap-to-call link.

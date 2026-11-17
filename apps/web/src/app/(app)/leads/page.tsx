@@ -15,6 +15,7 @@ export default async function LeadsPage() {
       email,
       status,
       interest_level,
+      do_not_call,
       created_at,
       calls ( id, summary, transcript, duration, call_status )
     `)

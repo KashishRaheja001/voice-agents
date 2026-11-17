@@ -15,6 +15,7 @@ export default async function InterestedLeadsPage() {
       email,
       status,
       interest_level,
+      do_not_call,
       created_at,
       budget,
       property_type,

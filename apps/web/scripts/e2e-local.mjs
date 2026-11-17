@@ -303,6 +303,22 @@ await test("pages render for a signed-in user (dashboard, leads, lead detail)", 
   eq((await api("/dashboard")).status, 307, "unauthenticated redirect");
 });
 
+await test("Site Visits page lists booked visits with the slot; leads page has search and bulk controls", async () => {
+  const G = await addLead(o1.org.id, { name: "Visit Vandana", phone: "+919876543217", budget: "1.2 crore" });
+  const res = await callLead(s1.cookie, G.id);
+  eq(res.status, 200, "call");
+  const run = (await res.json()).runId;
+  eq((await webhook({ run_id: run, lead_id: G.id, interest: "yes", visit_slot: "Sunday 11am", duration: "95" })).status, 200, "webhook");
+  const visits = await api("/visits", { cookie: s1.cookie });
+  eq(visits.status, 200, "visits status");
+  const vh = await visits.text();
+  ok(vh.includes("Visit Vandana") && vh.includes("Sunday 11am") && vh.includes("1.2 crore"), "visit card content");
+  ok(vh.includes(`tel:${G.phone}`), "tap-to-call link");
+  ok(!vh.includes("Opt Out Om"), "non-visit leads are not listed");
+  const leadsHtml = await (await api("/leads", { cookie: s1.cookie })).text();
+  ok(leadsHtml.includes("Search by name or phone") && leadsHtml.includes("Filter by status"), "search and filter controls");
+});
+
 await test("CSV import semantics: duplicates are skipped, only new rows are returned", async () => {
   const { data, error } = await s1.client
     .from("leads")
@@ -334,6 +350,8 @@ await test("RLS: another workspace cannot read, update or call our leads", async
   eq(mockCalls.length, before, "dograh calls made");
   const csv = await (await api("/api/export/calls", { cookie: s2.cookie })).text();
   ok(!csv.includes("Rohan Mehta"), "csv leaks another tenant's data");
+  const otherVisits = await (await api("/visits", { cookie: s2.cookie })).text();
+  ok(!otherVisits.includes("Visit Vandana"), "site visits leak across workspaces");
 });
 
 finish();

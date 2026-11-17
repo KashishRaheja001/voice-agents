@@ -62,7 +62,7 @@ export default async function DashboardPage() {
           Command Center
         </h1>
         <p className="text-on-surface-muted text-lg max-w-2xl font-serif leading-relaxed">
-          Monitor your AI voice agent's real-time performance. High-level metrics to track conversions and call volume at a glance.
+          Monitor your AI voice agent&apos;s real-time performance. High-level metrics to track conversions and call volume at a glance.
         </p>
       </div>
 
@@ -113,6 +113,7 @@ export default async function DashboardPage() {
         
         {recentCalls && recentCalls.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {recentCalls.map((call: any) => (
               <a href={`/leads/${call.leads?.id}`} key={call.id} className="block group">
                 <div className="border border-border/30 rounded-xl p-5 hover:bg-tertiary/30 hover:border-primary/30 transition-all">

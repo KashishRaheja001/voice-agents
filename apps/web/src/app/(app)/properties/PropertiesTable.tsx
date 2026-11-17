@@ -3,10 +3,13 @@ import { useState } from "react";
 import { addProperty, deleteProperty, updateProperty } from "@/app/actions/propertyActions";
 import { format } from "date-fns";
 
-export default function PropertiesTable({ initialProperties }: { initialProperties: any[] }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PropertyRow = any;
+
+export default function PropertiesTable({ initialProperties }: { initialProperties: PropertyRow[] }) {
   const [properties, setProperties] = useState(initialProperties);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editProperty, setEditProperty] = useState<any>(null); // State for editing
+  const [editProperty, setEditProperty] = useState<PropertyRow | null>(null); // State for editing
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this property?")) return;
@@ -97,7 +100,7 @@ export default function PropertiesTable({ initialProperties }: { initialProperti
               </tr>
             </thead>
             <tbody className="text-sm">
-              {properties.map((prop: any) => (
+              {properties.map((prop) => (
                 <tr key={prop.id} className="border-b border-border/20 last:border-0 hover:bg-tertiary/50 transition-colors">
                   <td className="py-5">
                     <div className="font-semibold text-on-surface text-base">{prop.project_name}</div>

@@ -1,4 +1,5 @@
 import { requireOrg } from "@/lib/auth";
+import Link from "next/link";
 import LeadsTable from "../LeadsTable";
 
 export const revalidate = 0; // Disable cache for this page since it's dynamic
@@ -30,7 +31,7 @@ export default async function InterestedLeadsPage() {
     <div className="space-y-12 py-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <a href="/leads" className="text-sm font-semibold text-on-surface-muted hover:text-primary transition-colors mb-4 inline-block">&larr; Back to All Leads</a>
+          <Link href="/leads" className="text-sm font-semibold text-on-surface-muted hover:text-primary transition-colors mb-4 inline-block">&larr; Back to All Leads</Link>
           <div className="flex items-center gap-4 mb-4">
             <h1 className="text-5xl font-serif text-on-surface tracking-tighter">
               Hot Leads

@@ -3,7 +3,19 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { addLead, deleteLead } from "@/app/actions/leadActions";
-export default function LeadsTable({ initialLeads, hideTabs = false }: { initialLeads: any[], hideTabs?: boolean }) {
+
+export type LeadRow = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  status: string;
+  interest_level: string;
+  created_at: string;
+  calls?: { id: string; summary: string | null; transcript: string | null; duration: number | null; call_status: string }[];
+};
+
+export default function LeadsTable({ initialLeads, hideTabs = false }: { initialLeads: LeadRow[], hideTabs?: boolean }) {
   const [leads, setLeads] = useState(initialLeads || []);
   const [callingId, setCallingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -125,7 +137,7 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
               </tr>
             </thead>
             <tbody className="text-sm">
-              {filteredLeads.map((lead: any) => (
+              {filteredLeads.map((lead) => (
                 <tr key={lead.id} className="border-b border-border/20 last:border-0 hover:bg-tertiary/50 transition-colors">
                   <td className="py-5">
                     <div className="font-semibold text-on-surface text-base">{lead.name}</div>
@@ -188,7 +200,7 @@ export default function LeadsTable({ initialLeads, hideTabs = false }: { initial
       ) : (
         <div className="text-center py-16 text-on-surface-muted bg-neutral/50 rounded-xl border border-border/30">
           <p className="text-lg font-serif mb-2">No leads found in this section.</p>
-          <p className="text-sm">Click "Add Lead" to start building your CRM, or check the other tab.</p>
+          <p className="text-sm">Click &quot;Add Lead&quot; to start building your CRM, or check the other tab.</p>
         </div>
       )}
     </div>

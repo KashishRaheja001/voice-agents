@@ -1,4 +1,5 @@
 import { requireOrg } from "@/lib/auth";
+import Link from "next/link";
 import { format } from "date-fns";
 
 export const revalidate = 0;
@@ -29,14 +30,14 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
       <div className="py-12 text-center">
         <h1 className="text-2xl font-serif text-on-surface">Lead not found</h1>
         <p className="text-on-surface-muted mt-2">The lead you are looking for does not exist or has been deleted.</p>
-        <a href="/leads" className="mt-6 inline-block bg-primary text-white px-6 py-2 rounded-full font-bold">Back to Leads</a>
+        <Link href="/leads" className="mt-6 inline-block bg-primary text-white px-6 py-2 rounded-full font-bold">Back to Leads</Link>
       </div>
     );
   }
 
   // Find the most recent call
   const recentCall = lead.calls && lead.calls.length > 0 
-    ? lead.calls.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+    ? lead.calls.sort((a: { created_at: string }, b: { created_at: string }) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
     : null;
 
   return (
@@ -44,7 +45,7 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
       {/* Header section with back button and main status */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <a href="/leads" className="text-sm font-semibold text-on-surface-muted hover:text-primary transition-colors mb-4 inline-block">&larr; Back to Leads</a>
+          <Link href="/leads" className="text-sm font-semibold text-on-surface-muted hover:text-primary transition-colors mb-4 inline-block">&larr; Back to Leads</Link>
           <h1 className="text-5xl font-serif text-on-surface tracking-tighter mb-2">{lead.name}</h1>
           <p className="text-on-surface-muted font-medium">{lead.phone} {lead.email && `• ${lead.email}`}</p>
         </div>
@@ -144,7 +145,7 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
                 <span className="text-2xl opacity-50">📞</span>
               </div>
               <h2 className="text-2xl font-serif text-on-surface mb-2">No Calls Yet</h2>
-              <p className="text-on-surface-muted mb-6">This lead hasn't been contacted by the AI voice agent.</p>
+              <p className="text-on-surface-muted mb-6">This lead hasn&apos;t been contacted by the AI voice agent.</p>
               <form action="/api/call" method="POST" className="inline-block">
                 <input type="hidden" name="leadId" value={lead.id} />
                 <input type="hidden" name="phone" value={lead.phone} />

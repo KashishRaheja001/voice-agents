@@ -1,6 +1,7 @@
 import { requireOrg } from "@/lib/auth";
 import Link from "next/link";
 import { format } from "date-fns";
+import LeadActions from "./LeadActions";
 
 export const revalidate = 0;
 
@@ -17,6 +18,7 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
       email,
       budget,
       property_type,
+      do_not_call,
       status,
       interest_level,
       created_at,
@@ -47,7 +49,8 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
         <div>
           <Link href="/leads" className="text-sm font-semibold text-on-surface-muted hover:text-primary transition-colors mb-4 inline-block">&larr; Back to Leads</Link>
           <h1 className="text-5xl font-serif text-on-surface tracking-tighter mb-2">{lead.name}</h1>
-          <p className="text-on-surface-muted font-medium">{lead.phone} {lead.email && `• ${lead.email}`}</p>
+          <p className="text-on-surface-muted font-medium mb-5">{lead.phone} {lead.email && `• ${lead.email}`}</p>
+          <LeadActions leadId={lead.id} doNotCall={lead.do_not_call} />
         </div>
         
         {/* Massive Status Badge */}
@@ -146,13 +149,7 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
               </div>
               <h2 className="text-2xl font-serif text-on-surface mb-2">No Calls Yet</h2>
               <p className="text-on-surface-muted mb-6">This lead hasn&apos;t been contacted by the AI voice agent.</p>
-              <form action="/api/call" method="POST" className="inline-block">
-                <input type="hidden" name="leadId" value={lead.id} />
-                <input type="hidden" name="phone" value={lead.phone} />
-                <button type="button" onClick={() => alert("Please initiate calls from the Leads table page.")} className="bg-primary text-white px-6 py-3 rounded-full font-bold shadow-sm hover:opacity-90 transition-opacity">
-                  Go to Leads to Call
-                </button>
-              </form>
+              <p className="text-sm text-on-surface-muted">Use the Call with AI button above.</p>
             </div>
           )}
         </div>

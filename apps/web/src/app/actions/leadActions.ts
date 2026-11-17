@@ -126,6 +126,16 @@ export async function importLeads(formData: FormData) {
   };
 }
 
+// Manual opt-out (or undo). RLS limits this to the signed-in user's own leads.
+export async function setDoNotCall(id: string, value: boolean) {
+  const { supabase } = await requireOrg();
+  const { error } = await supabase.from("leads").update({ do_not_call: value }).eq("id", id);
+  if (error) return { error: "Could not update the lead." };
+  revalidatePath(`/leads/${id}`);
+  revalidatePath("/leads");
+  return { success: true };
+}
+
 export async function deleteLead(id: string) {
   const { supabase } = await requireOrg();
 
